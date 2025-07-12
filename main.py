@@ -31,8 +31,6 @@ async def create_geyser_connection():
         )
 
     creds = grpc.composite_channel_credentials(grpc.ssl_channel_credentials(), auth)
-
-    # gRPC keepalive options (complementary to Yellowstone pings)
     keepalive_options = [
         ("grpc.keepalive_time_ms", 30000),
         ("grpc.keepalive_timeout_ms", 10000),
@@ -51,24 +49,6 @@ def create_subscription_request():
     request.transactions["pump_filter"].failed = False
     request.commitment = geyser_pb2.CommitmentLevel.PROCESSED
     return request
-
-
-def create_ping_request():
-    """Create a ping request to keep connection alive."""
-    ping_request = geyser_pb2.SubscribeRequest()
-    ping_request.ping = True  # Yellowstone-specific ping
-    return ping_request
-
-
-async def request_generator():
-    """Generate subscription requests with periodic pings."""
-    # Send initial subscription
-    yield create_subscription_request()
-
-    # Send pings every 30 seconds to keep connection alive
-    while True:
-        await asyncio.sleep(30)
-        yield create_ping_request()
 
 
 def decode_create_instruction(ix_data: bytes, keys, accounts) -> dict:
@@ -130,53 +110,55 @@ def print_token_info(info, signature):
 async def monitor_pump():
     """Monitor Solana blockchain for new Pump.fun token creations."""
     print(f"Starting Pump.fun token monitor using {AUTH_TYPE.upper()} authentication")
-    print("📡 Connecting to Yellowstone gRPC...")
 
-    try:
-        stub = await create_geyser_connection()
-        print("✅ Connected successfully!")
-        print("🔍 Monitoring for new Pump.fun token launches...")
-        print("🏓 Ping system active (every 30s)")
-        print("-" * 50)
+    while True:
+        try:
+            print("📡 Connecting to Yellowstone gRPC...")
+            stub = await create_geyser_connection()
+            print("✅ Connected successfully!")
+            print("🔍 Monitoring for new Pump.fun token launches...")
+            print("-" * 50)
 
-        async for update in stub.Subscribe(request_generator()):
-            # Handle ping/pong responses
-            if update.HasField("pong"):
-                print("🏓 Pong received from server")
-                continue
+            request = create_subscription_request()
 
-            # Only process transaction updates
-            if not update.HasField("transaction"):
-                continue
-
-            tx = update.transaction.transaction.transaction
-            msg = getattr(tx, "message", None)
-            if msg is None:
-                continue
-
-            # Check each instruction in the transaction
-            for ix in msg.instructions:
-                # Quick check: is this a pump.fun create instruction?
-                if not ix.data.startswith(PUMP_CREATE_PREFIX):
+            async for update in stub.Subscribe(iter([request])):
+                # Only process transaction updates
+                if not update.HasField("transaction"):
                     continue
 
-                # Decode and display token information
-                try:
-                    info = decode_create_instruction(
-                        ix.data, msg.account_keys, ix.accounts
-                    )
-                    signature = base58.b58encode(
-                        bytes(update.transaction.transaction.signature)
-                    ).decode()
-                    print_token_info(info, signature)
-                except Exception as e:
-                    print(f"⚠️ Error decoding instruction: {e}")
+                tx = update.transaction.transaction.transaction
+                msg = getattr(tx, "message", None)
+                if msg is None:
                     continue
 
-    except grpc.RpcError as e:
-        print(f"❌ gRPC Error: {e}")
-    except Exception as e:
-        print(f"❌ Unexpected error: {e}")
+                # Check each instruction in the transaction
+                for ix in msg.instructions:
+                    # Quick check: is this a pump.fun create instruction?
+                    if not ix.data.startswith(PUMP_CREATE_PREFIX):
+                        continue
+
+                    # Decode and display token information
+                    try:
+                        info = decode_create_instruction(
+                            ix.data, msg.account_keys, ix.accounts
+                        )
+                        signature = base58.b58encode(
+                            bytes(update.transaction.transaction.signature)
+                        ).decode()
+                        print_token_info(info, signature)
+                    except Exception as e:
+                        print(f"⚠️ Error decoding instruction: {e}")
+                        continue
+
+        except (grpc.RpcError, asyncio.CancelledError) as e:
+            error_name = type(e).__name__
+            print(f"\n❌ Connection lost ({error_name}). Reconnecting in 3 seconds...")
+            await asyncio.sleep(3)
+        except Exception as e:
+            print(
+                f"\n❌ An unexpected error occurred: {e}. Reconnecting in 3 seconds..."
+            )
+            await asyncio.sleep(3)
 
 
 if __name__ == "__main__":
