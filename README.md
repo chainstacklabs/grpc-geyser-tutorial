@@ -110,15 +110,11 @@ uv run --with grpcio-tools -- python -m grpc_tools.protoc \
 The protoc generates the code with absolute imports. Since we placed the generated files to the `generated` folder, we need to fix imports to avoid errors during the further steps:
 
 1. In `geyser_pb2.py`:
-	- **Change from:** `import solana_storage_pb2 as solana__storage__pb2`
-	- **Change to:** `from . import solana_storage_pb2 as solana__storage__pb2`
-	
-	- **Change from**: `from solana_storage_pb2 import *`
-	- **Change to**: `from .solana_storage_pb2 import *`
+	- Change from `import solana_storage_pb2 as solana__storage__pb2` to `from . import solana_storage_pb2 as solana__storage__pb2`.
+	- Change from `from solana_storage_pb2 import *` to `from .solana_storage_pb2 import *`.
 
 2. In `geyser_pb2_grpc.py`:
-	- **Change from:** `import geyser_pb2 as geyser__pb2`
-	- **Change to:** `from . import geyser_pb2 as geyser__pb2`
+	- Change from `import geyser_pb2 as geyser__pb2` to `from . import geyser_pb2 as geyser__pb2`.
 
 ### Step 3: Environment configuration
 
