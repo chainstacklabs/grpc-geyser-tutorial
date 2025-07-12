@@ -16,6 +16,7 @@ AUTH_TYPE = "x-token"  # or "basic"
 PUMP_PROGRAM_ID = Pubkey.from_string("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P")
 PUMP_CREATE_PREFIX = struct.pack("<Q", 8576854823835016728)
 
+
 async def create_geyser_connection():
     """Establish a secure connection to the Geyser endpoint."""
     if AUTH_TYPE == "x-token":
@@ -24,15 +25,19 @@ async def create_geyser_connection():
         )
     else:  # Basic authentication
         auth = grpc.metadata_call_credentials(
-            lambda _, callback: callback((("authorization", f"Basic {GEYSER_API_TOKEN}"),), None)
+            lambda _, callback: callback(
+                (("authorization", f"Basic {GEYSER_API_TOKEN}"),), None
+            )
         )
-    
+
     creds = grpc.composite_channel_credentials(grpc.ssl_channel_credentials(), auth)
+
+    # gRPC keepalive options (complementary to Yellowstone pings)
     keepalive_options = [
-        ('grpc.keepalive_time_ms', 30000),
-        ('grpc.keepalive_timeout_ms', 10000),
-        ('grpc.keepalive_permit_without_calls', True),
-        ('grpc.http2.min_time_between_pings_ms', 10000),
+        ("grpc.keepalive_time_ms", 30000),
+        ("grpc.keepalive_timeout_ms", 10000),
+        ("grpc.keepalive_permit_without_calls", True),
+        ("grpc.http2.min_time_between_pings_ms", 10000),
     ]
 
     channel = grpc.aio.secure_channel(GEYSER_ENDPOINT, creds, options=keepalive_options)
@@ -48,48 +53,66 @@ def create_subscription_request():
     return request
 
 
+def create_ping_request():
+    """Create a ping request to keep connection alive."""
+    ping_request = geyser_pb2.SubscribeRequest()
+    ping_request.ping = True  # Yellowstone-specific ping
+    return ping_request
+
+
+async def request_generator():
+    """Generate subscription requests with periodic pings."""
+    # Send initial subscription
+    yield create_subscription_request()
+
+    # Send pings every 30 seconds to keep connection alive
+    while True:
+        await asyncio.sleep(30)
+        yield create_ping_request()
+
+
 def decode_create_instruction(ix_data: bytes, keys, accounts) -> dict:
     """Decode a create instruction from transaction data."""
     offset = 8  # Skip the 8-byte discriminator
-    
+
     def get_account_key(index):
         """Extract account public key by index."""
         if index >= len(accounts):
             return "N/A"
         account_index = accounts[index]
         return base58.b58encode(keys[account_index]).decode()
-    
+
     def read_string():
         """Read length-prefixed string from instruction data."""
         nonlocal offset
         length = struct.unpack_from("<I", ix_data, offset)[0]  # Read 4-byte length
         offset += 4
-        value = ix_data[offset:offset + length].decode()       # Read string data
+        value = ix_data[offset : offset + length].decode()  # Read string data
         offset += length
         return value
-    
+
     def read_pubkey():
         """Read 32-byte public key from instruction data."""
         nonlocal offset
-        value = base58.b58encode(ix_data[offset:offset + 32]).decode()
+        value = base58.b58encode(ix_data[offset : offset + 32]).decode()
         offset += 32
         return value
-    
+
     # Parse instruction data according to pump.fun's create schema
     name = read_string()
-    symbol = read_string() 
+    symbol = read_string()
     uri = read_string()
     creator = read_pubkey()
-    
+
     return {
         "name": name,
         "symbol": symbol,
         "uri": uri,
         "creator": creator,
-        "mint": get_account_key(0),           # New token mint address
+        "mint": get_account_key(0),  # New token mint address
         "bonding_curve": get_account_key(2),  # Price discovery mechanism
         "associated_bonding_curve": get_account_key(3),  # Token account for curve
-        "user": get_account_key(7),           # Transaction signer
+        "user": get_account_key(7),  # Transaction signer
     }
 
 
@@ -107,30 +130,59 @@ def print_token_info(info, signature):
 async def monitor_pump():
     """Monitor Solana blockchain for new Pump.fun token creations."""
     print(f"Starting Pump.fun token monitor using {AUTH_TYPE.upper()} authentication")
-    stub = await create_geyser_connection()
-    request = create_subscription_request()
-    
-    async for update in stub.Subscribe(iter([request])):
-        # Only process transaction updates
-        if not update.HasField("transaction"):
-            continue
-        
-        tx = update.transaction.transaction.transaction
-        msg = getattr(tx, "message", None)
-        if msg is None:
-            continue
-        
-        # Check each instruction in the transaction
-        for ix in msg.instructions:
-            # Quick check: is this a pump.fun create instruction?
-            if not ix.data.startswith(PUMP_CREATE_PREFIX):
+    print("📡 Connecting to Yellowstone gRPC...")
+
+    try:
+        stub = await create_geyser_connection()
+        print("✅ Connected successfully!")
+        print("🔍 Monitoring for new Pump.fun token launches...")
+        print("🏓 Ping system active (every 30s)")
+        print("-" * 50)
+
+        async for update in stub.Subscribe(request_generator()):
+            # Handle ping/pong responses
+            if update.HasField("pong"):
+                print("🏓 Pong received from server")
                 continue
 
-            # Decode and display token information
-            info = decode_create_instruction(ix.data, msg.account_keys, ix.accounts)
-            signature = base58.b58encode(bytes(update.transaction.transaction.signature)).decode()
-            print_token_info(info, signature)
+            # Only process transaction updates
+            if not update.HasField("transaction"):
+                continue
+
+            tx = update.transaction.transaction.transaction
+            msg = getattr(tx, "message", None)
+            if msg is None:
+                continue
+
+            # Check each instruction in the transaction
+            for ix in msg.instructions:
+                # Quick check: is this a pump.fun create instruction?
+                if not ix.data.startswith(PUMP_CREATE_PREFIX):
+                    continue
+
+                # Decode and display token information
+                try:
+                    info = decode_create_instruction(
+                        ix.data, msg.account_keys, ix.accounts
+                    )
+                    signature = base58.b58encode(
+                        bytes(update.transaction.transaction.signature)
+                    ).decode()
+                    print_token_info(info, signature)
+                except Exception as e:
+                    print(f"⚠️ Error decoding instruction: {e}")
+                    continue
+
+    except grpc.RpcError as e:
+        print(f"❌ gRPC Error: {e}")
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
 
 
 if __name__ == "__main__":
-    asyncio.run(monitor_pump())
+    try:
+        asyncio.run(monitor_pump())
+    except KeyboardInterrupt:
+        print("\n🛑 Monitor stopped by user")
+    except Exception as e:
+        print(f"❌ Fatal error: {e}")

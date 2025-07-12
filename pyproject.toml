@@ -11,3 +11,8 @@ dependencies = [
     "python-dotenv>=1.1.1",
     "solders>=0.26.0",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.3",
+]
