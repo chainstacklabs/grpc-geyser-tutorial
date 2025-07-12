@@ -15,9 +15,8 @@ load_dotenv()
 GEYSER_ENDPOINT = os.getenv("GEYSER_ENDPOINT")
 GEYSER_API_TOKEN = os.getenv("GEYSER_API_TOKEN")
 
-# This is the Raydium (WSOL-RAY) market address.
-# We will subscribe to updates for this specific account.
-RAYDIUM_MARKET_ADDRESS = "2AXXcN6oN9bBT5owwmTH53C7QHUXvhLeu718Kqt8rvY2"
+WHIRLPOOL_PROGRAM_ID = "whirLbMiicVdio4qvUfM5KAg6Ct8VwpYzGff3uctyCc"
+RAYDIUM_CONCENTRATED_LIQ_PROGRAM_ID = "CAMMCzo5YL8w4VFF8KVHrK22GGUsp5VTaW7grrKgrWqK"
 
 
 async def main():
@@ -45,11 +44,9 @@ async def main():
                     # Otherwise fields works as logical AND and values in arrays as logical OR.
                     vote=False,  # Exclude vote transactions
                     failed=False,  # Exclude failed transactions
-                    account_include=[
-                        RAYDIUM_MARKET_ADDRESS
-                    ],  # Use this to ensure that ANY account is included
+                    account_include=[],  # Use this to ensure that ANY account is included
                     account_exclude=[],  # Use this to exclude specific accounts
-                    account_required=[],  # Use this to ensure ALL accounts are included
+                    account_required=[WHIRLPOOL_PROGRAM_ID, RAYDIUM_CONCENTRATED_LIQ_PROGRAM_ID],  # Use this to ensure ALL accounts in the array are included
                 )
             },
             commitment=geyser_pb2.CommitmentLevel.PROCESSED,
