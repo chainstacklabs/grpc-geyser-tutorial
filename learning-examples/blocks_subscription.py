@@ -3,7 +3,7 @@ import os
 import sys
 import grpc
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from dotenv import load_dotenv
 from generated import geyser_pb2, geyser_pb2_grpc
@@ -17,11 +17,12 @@ GEYSER_API_TOKEN = os.getenv("GEYSER_API_TOKEN")
 # Pump.fun program ID - we will subscribe to blocks containing its transactions
 PUMP_FUN_PROGRAM_ID = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P"
 
+
 async def main():
     """
     Main function that connects to Geyser and monitors blocks containing transactions
     for the specified pump.fun program.
-    
+
     This will receive updates for any block that includes a transaction interacting
     with the PUMP_FUN_PROGRAM_ID.
     """
@@ -30,9 +31,11 @@ async def main():
         grpc.composite_channel_credentials(
             grpc.ssl_channel_credentials(),
             grpc.metadata_call_credentials(
-                lambda context, callback: callback((('x-token', GEYSER_API_TOKEN),), None)
-            )
-        )
+                lambda context, callback: callback(
+                    (("x-token", GEYSER_API_TOKEN),), None
+                )
+            ),
+        ),
     ) as channel:
         stub = geyser_pb2_grpc.GeyserStub(channel)
 
@@ -42,8 +45,8 @@ async def main():
                 "blocks_filter": geyser_pb2.SubscribeRequestFilterBlocks(
                     account_include=[PUMP_FUN_PROGRAM_ID],
                     include_transactions=True,  # Include transactions in which the account is involved
-                    include_accounts=False,     # Not allowed
-                    include_entries=False       # Not allowed
+                    include_accounts=False,  # Not allowed
+                    include_entries=False,  # Not allowed
                 )
             },
             commitment=geyser_pb2.CommitmentLevel.PROCESSED,
@@ -56,21 +59,24 @@ async def main():
         update_count = 0
         async for response in stub.Subscribe(iter([request])):
             update_count += 1
-            
+
             if response.block:
                 block_info = response.block
-                
+
                 print(f"📦 Block Update #{update_count}")
                 print(f"   Slot: {block_info.slot}")
                 print(f"   Blockhash: {block_info.blockhash}")
-                
+
                 if block_info.transactions:
-                    print(f"   Found {len(block_info.transactions)} transactions involving the program.")
-                
+                    print(
+                        f"   Found {len(block_info.transactions)} transactions involving the program."
+                    )
+
                 print("---")
             else:
                 print(f"⚠️  Received non-block update: {response}")
                 print("---")
+
 
 if __name__ == "__main__":
     try:
