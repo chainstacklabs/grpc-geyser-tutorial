@@ -39,7 +39,8 @@ def get_token_symbol(mint):
 def calculate_dlmm_price_actual(active_id: int, bin_step: int) -> float:
     """
     Calculate the actual price for Meteora DLMM.
-    Formula: price = (1 + bin_step/10000)^active_id
+    Formula: price = (1 + bin_step/10000)^active_id^decimal_adjustment
+    where decimal_adjustment is 10^(9 - 6) for WSOL and token decimals.
     """
     try:
         bin_step_decimal = bin_step / 10000.0

@@ -4,7 +4,7 @@ There are multiple ways for listening to updates in Solana blockchain. The defau
 
 `blockSubscribe` is considered unstable and may not be supported by all RPC providers. Moreover, this method doesn't support `processed` commitment level. It waits for complete blocks to be confirmed or finalized before sending data.
 
-`logsSubscribe` is faster than `blockSubscribe` since it streams logs in real-time as transactions are processed. Its limitation is that it truncates log messages that exceed size limits (typically around 10KB). If you need complete transaction data, you still need to use `blockSubscribe` or send additional RPC calls.
+`logsSubscribe` is faster than `blockSubscribe` since it streams logs in real-time as transactions are processed. Its limitation is that it truncates log messages that exceed size limits. If you need complete transaction data, you still need to use `blockSubscribe` or send additional RPC calls.
 
 Luckily, a plugin mechanism has been introduced to Solana nodes. They have been enhanced to support a Geyser plugin mechanism which is a special interface that allows RPC providers to stream information about accounts, slots, blocks, and transactions to external data stores.
 
@@ -16,7 +16,7 @@ In this tutorial, we focus on the gRPC plugin which uses the [gRPC](https://grpc
 
 By default, gRPC uses [protocol buffers](https://developers.google.com/protocol-buffers) as the Interface Definition Language (IDL) for describing both the service interface and the structure of the messages. For a user of Yellowstone gRPC plugin, it means that there are special proto files based on which client code will be generated and imported into other modules.
 
-Those [proto files](https://github.com/rpcpool/yellowstone-grpc/tree/master/yellowstone-grpc-proto/proto) define the service interface (what RPC methods are available), message structures (request/response formats), data types, and enums. These definitions support code generation for all popular programming languages including Python, Go, Java, C++, JavaScript/Node.js, Rust, C#, and many others. A few examples below show the service interface and message structures defined in the proto files.
+Those [proto files](https://github.com/rpcpool/yellowstone-grpc/tree/master/yellowstone-grpc-proto/proto) define the service interface (what methods are available), message structures (request/response formats), data types, and enums. These definitions support code generation for all popular programming languages including Python, Go, Java, C++, JavaScript/Node.js, Rust, C#, and many others. A few examples below show the service interface and message structures defined in the proto files.
 
 ```protobuf
 // Service interface definition
@@ -64,7 +64,14 @@ The generated client code handles all the low-level complexity: serialization an
 
 Let's build a real-time token monitor that detects new pump.fun tokens the moment they're created. We'll construct this step-by-step.
 
-For package management, we will super fast and modern [uv](https://docs.astral.sh/uv/getting-started/installation/) tool.
+For package management, we will use super fast and modern [uv](https://docs.astral.sh/uv/getting-started/installation/) tool.
+
+*If you are in a hurry, simply clone this repository and sync dependencies*.
+
+```bash
+git clone https://github.com/chainstacklabs/grpc-geyser-tutorial .
+uv sync
+```
 
 ### Step 1: Project setup and dependencies
 
