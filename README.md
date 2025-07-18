@@ -128,9 +128,10 @@ The protoc generates the code with absolute imports. Since we placed the generat
 Create a `.env` file with your Geyser credentials. If you use Chainstack, enable the Yellowstone gRPC Geyser Plugin and the credentials will appear on the overview page of your Solana node.
 
 ```env
-GEYSER_ENDPOINT=your_provider_endpoint
-GEYSER_API_TOKEN=your_api_token
+GEYSER_ENDPOINT=YOUR_CHAINSTACK_YELLOWSTONE_GEYSER_GRPC_ENDPOINT
+GEYSER_API_TOKEN=YOUR_CHAINSTACK_YELLOWSTONE_GEYSER_X_TOKEN
 ```
+See also [Chainstack Yellowstone Geyser add-on](https://chainstack.com/marketplace/yellowstone-grpc-geyser-plugin/).
 
 ### Step 4: Core constants and setup
 
