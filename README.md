@@ -1,3 +1,5 @@
+YouTube walkthrough: [Solana Real‑Time Streams with Yellowstone gRPC Geyser (Python Token Alerts Tutorial)](https://youtu.be/ICBF1wdD-sM)
+
 ## Introduction to Geyser plugin
 
 There are multiple ways for listening to updates in Solana blockchain. The default method is to use WebSocket methods. However, they have certain limitations.
