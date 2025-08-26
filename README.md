@@ -211,6 +211,24 @@ def create_subscription_request():
 - `failed = False`: exclude failed transactions to reduce noise.
 - `PROCESSED` commitment: get updates as soon as transactions are processed (fastest possible).
 
+#### Using `from_slot` for historical data
+
+The `from_slot` parameter allows you to replay blockchain data from a specific historical slot:
+
+```python
+request = geyser_pb2.SubscribeRequest(
+    slots={"filter": geyser_pb2.SubscribeRequestFilterSlots()},
+    commitment=geyser_pb2.CommitmentLevel.PROCESSED,
+    from_slot=362520000  # Start from this historical slot
+)
+```
+
+What is `from_slot`?
+- Starts streaming from a specific slot instead of the current slot
+- Useful for replaying missed events and backfilling after short downtime
+- Limited by the data retention (usually a few minutes)
+- If the requested slot is too old, you'll get an error with the oldest available slot
+
 ### Step 7: Instruction data decoding
 
 This is where the magic happens - extracting meaningful data from raw blockchain bytes:
@@ -331,6 +349,7 @@ Here are short summaries of each learning example file, from basic to advanced, 
 ### Other subscriptions
 
 - **`slots_subscription.py`**: this example shows how to subscribe to slot updates, giving you a real-time feed of when new slots are processed by the validator.
+- **`historical_replay_with_from_slot.py`**: demonstrates using the `from_slot` parameter to replay historical blockchain data from a specific slot instead of starting from the current slot.
 - **`blocks_subscription.py`**: this script demonstrates how to subscribe to entire blocks that contain transactions interacting with a specific account.
 - **`blocks_meta_subscription.py`**: this example shows how to subscribe to just the metadata of blocks, which is a lightweight way to track block production.
 - **`entries_subscription.py`**: this script demonstrates how to subscribe to ledger entries, which provides a low-level stream of the changes being written to the Solana ledger.
