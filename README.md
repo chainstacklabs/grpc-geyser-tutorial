@@ -211,23 +211,24 @@ def create_subscription_request():
 - `failed = False`: exclude failed transactions to reduce noise.
 - `PROCESSED` commitment: get updates as soon as transactions are processed (fastest possible).
 
-#### Using `from_slot` for historical data
+#### Using `from_slot` to recover missed slots
 
-The `from_slot` parameter allows you to replay blockchain data from a specific historical slot:
+The `from_slot` parameter replays recent slots from a server-side ring buffer, so a client that briefly disconnects can reconnect and catch up without missing events. It is a reconnection-recovery mechanism, not a historical backfill:
 
 ```python
 request = geyser_pb2.SubscribeRequest(
     slots={"filter": geyser_pb2.SubscribeRequestFilterSlots()},
     commitment=geyser_pb2.CommitmentLevel.PROCESSED,
-    from_slot=362520000  # Start from this historical slot
+    from_slot=current_slot - 100  # replay the last ~100 slots; older than the buffer errors
 )
 ```
 
 What is `from_slot`?
-- Starts streaming from a specific slot instead of the current slot
-- Useful for replaying missed events and backfilling after short downtime
-- Limited by the data retention (usually a few minutes)
-- If the requested slot is too old, you'll get an error with the oldest available slot
+- Starts streaming from a recent past slot instead of the current slot
+- Useful for recovering events missed during a short disconnect
+- Limited by a small server-side buffer (roughly the last ~100 slots, about a minute, on shared nodes; dedicated nodes can be configured larger)
+- If the requested slot is older than the buffer, you'll get an `OUT_OF_RANGE` error with the oldest available slot
+- For arbitrary historical data, use JSON-RPC (`getBlock`, `getSignaturesForAddress`, `getTransaction`) instead
 
 ### Step 7: Instruction data decoding
 
@@ -349,7 +350,7 @@ Here are short summaries of each learning example file, from basic to advanced, 
 ### Other subscriptions
 
 - **`slots_subscription.py`**: this example shows how to subscribe to slot updates, giving you a real-time feed of when new slots are processed by the validator.
-- **`historical_replay_with_from_slot.py`**: demonstrates using the `from_slot` parameter to replay historical blockchain data from a specific slot instead of starting from the current slot.
+- **`recover_missed_slots_with_from_slot.py`**: demonstrates using the `from_slot` parameter to recover slots missed during a brief disconnect by replaying from a recent past slot. It is a reconnection-recovery mechanism, not a historical backfill — for older data, use JSON-RPC.
 - **`blocks_subscription.py`**: this script demonstrates how to subscribe to entire blocks that contain transactions interacting with a specific account.
 - **`blocks_meta_subscription.py`**: this example shows how to subscribe to just the metadata of blocks, which is a lightweight way to track block production.
 - **`entries_subscription.py`**: this script demonstrates how to subscribe to ledger entries, which provides a low-level stream of the changes being written to the Solana ledger.
