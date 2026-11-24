@@ -127,13 +127,13 @@ The protoc generates the code with absolute imports. Since we placed the generat
 
 ### Step 3: Environment configuration
 
-Create a `.env` file with your Geyser credentials. If you use Chainstack, enable the Yellowstone gRPC Geyser Plugin and the credentials will appear on the overview page of your Solana node.
+Create a `.env` file with your Geyser credentials. If you use Chainstack, enable the Yellowstone gRPC Geyser Plugin and the credentials will appear on the overview page of your Solana node. To get a Solana node, sign up for a [Chainstack account](https://console.chainstack.com/sign-up?utm_source=github&utm_medium=referral&utm_campaign=grpc-geyser-tutorial).
 
 ```env
 GEYSER_ENDPOINT=YOUR_CHAINSTACK_YELLOWSTONE_GEYSER_GRPC_ENDPOINT
 GEYSER_API_TOKEN=YOUR_CHAINSTACK_YELLOWSTONE_GEYSER_X_TOKEN
 ```
-See also [Chainstack Yellowstone Geyser add-on](https://chainstack.com/marketplace/yellowstone-grpc-geyser-plugin/).
+See also [Chainstack Yellowstone Geyser add-on](https://chainstack.com/marketplace/featured/yellowstone-grpc-geyser-plugin/?utm_source=github&utm_medium=referral&utm_campaign=grpc-geyser-tutorial).
 
 ### Step 4: Core constants and setup
 
